@@ -16,7 +16,7 @@ function simulaNeuronios()
     # Seja W a matriz que representa o grafo ponderado orientado das interações
     # Usamos um grafo completo
     n = 20
-    W::Vector{Int16} = fill(4, n, n)
+    W::Matrix{Int16} = fill(Int16(4), n, n)
 
     # Definimos uma função para a probabilidade de disparar
     a = 0.95
@@ -34,7 +34,7 @@ function simulaNeuronios()
     energias = fill(v0, n)
 
     iteracoes = 100
-    dados = zeros(loops, n)
+    dados = zeros(Int8, iteracoes, n)
 
     for i in 1:iteracoes
         # Ativa os neurônios com a regra probabilística
@@ -45,6 +45,7 @@ function simulaNeuronios()
         ativaram = findall(probs .> rands)
         pulsos = zeros(Int8, n)
         pulsos[ativaram] .= 1
+        println(pulsos)
         dados[i, :] = pulsos
 
         # Transfere energia para os adjacentes (segundo a matriz W)
