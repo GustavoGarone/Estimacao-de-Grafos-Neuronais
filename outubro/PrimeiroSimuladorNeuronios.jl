@@ -1,19 +1,27 @@
-using Plots, Random
+using Plots, Random, StatsBase
 Random.seed!(69)
 
-const a = 0.95
-const b = 0.1
+const a = 1
+const b = 1
 const c = 0
-const n = 100
-const ganho = 5
+const n = 10
+const ganho = 1
 const v0 = 1
-const iteracoes = 1_000
+const iteracoes = 100
 const perda = 0.8
 
 # https://www.desmos.com/calculator/qj06kcul6d?lang=pt-BR
 # plot(ϕ, xlim = (0,100), ylim = (0,1))
+
+# Phi sinoidal
 ϕ(v) = a ./ (1 .+ exp.(-b * v .+ c))
-# ϕ(v) = (v <= 5) ? v / 5 : 1
+
+# Phi linear
+# ϕ(v) = (v <= 10) ? v / 10 : 1
+
+# ϕ(v) = min(1, 2v / 7)
+
+
 # plot(0:10, ϕ)
 
 function simulaNeuronios()
@@ -31,7 +39,7 @@ function simulaNeuronios()
 
     # Seja W a matriz que representa o grafo ponderado orientado das interações
     # Usamos um grafo completo
-    W::Matrix{Float16} = fill(Float16(ganho), n, n)
+    W::Matrix{Float32} = fill(Float32(ganho), n, n)
 
     # Função de perda
     ρ(v) = v * perda
@@ -70,7 +78,6 @@ function simulaNeuronios()
 
     matriz = permutedims(dados)
 
-    # Plota as ativações dos neurônios
     return matriz
 end
 
@@ -89,7 +96,7 @@ function simulaNeuroniosDiagnostico()
 
     # Seja W a matriz que representa o grafo ponderado orientado das interações
     # Usamos um grafo completo
-    W::Matrix{Float16} = fill(Float16(ganho), n, n)
+    W::Matrix{Float32} = fill(Float32(ganho), n, n)
 
     # Função de perda
     ρ(v) = v * perda
@@ -103,7 +110,7 @@ function simulaNeuroniosDiagnostico()
 
     # Testes
     uniformes = []
-    vs = []
+    vs::Vector{Vector{Float64}} = []
 
 
     for i in 1:iteracoes
@@ -144,8 +151,7 @@ function simulaNeuroniosDiagnostico()
             ylabel = "Neurônio",
             title = "Instantes de ativações dos neurônios",
             legend = false
-        ), matriz, uniformes, vs
+        ), matriz, uniformes, reduce(hcat, vs)
 end
 
-
-# p1, m1, u1, v1 = simulaNeuronios()
+# p1, m1, u1, v1 = simulaNeuroniosDiagnostico()
