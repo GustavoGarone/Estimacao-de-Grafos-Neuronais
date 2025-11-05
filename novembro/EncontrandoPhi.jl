@@ -1,21 +1,23 @@
-# Neste arquivo, almejamos estudar diferentes funções ϕ para a ativação
-# dos neurônios em um modelo simples de rede neural estocástica.
-# através de Tuning. Utilizamos o simulador de neurônios definido em
-# PrimeiroSimuladorNeuronios.jl
-using Plots, Random, StatsBase
+# Neste arquivo, buscamos encontrar funções de ativação ϕ com comportamento
+# interessante. Definimos como linear, e buscamos padrões entre a relação do
+# coeficiente angular e
+using Plots, Random, StatsBase, LinearAlgebra
 Random.seed!(69)
 
+const a = 0.8
+const c = 2
 const n = 10
-const ganho = 5
+const ganho = 0.5
 const v0 = 1
 const iteracoes = 100
 const M = 10
-const perda = 0.8
+const perda = 1
+const inflexao = 0.7
 
 # https://www.desmos.com/calculator/qj06kcul6d?lang=pt-BR
 # plot(ϕ, xlim = (0,100), ylim = (0,1))
 
-function simulaNeuronios(ϕ)
+function simulaNeuroniosDiagnostico()
     """
     Nesse modelo, os neurônios, quando ativam, enviam cargas para os neurônios
     conectoados a ele no grafo e, ao final da iteraão, todos que foram ativados são
@@ -31,17 +33,35 @@ function simulaNeuronios(ϕ)
     # Seja W a matriz que representa o grafo ponderado orientado das interações
     # Usamos um grafo completo
     W::Matrix{Float32} = fill(Float32(ganho), n, n)
+    W[diagind(W)] .= 0.0
+    W̄ = mean(W)
+
+
+    #https://www.desmos.com/calculator/v2ebrbvwg8
+
+    function ϕ(v)
+        b = (c - log((a - inflexao) / inflexao)) / W̄
+        return a / (1 + exp(-b * v .+ c))
+    end
+
+    # plotphi = plot(
+    #     ϕ, xlims = (-2, 12), ylims = (-0.1, 1.1),
+    #     title = "Função de ativação ϕ", xlabel = "Energia v",
+    #     ylabel = "Probabilidade de ativação ϕ(v)",
+    #     framestyle = :zerolines
+    # )
+    # display(plotphi)
 
     # Função de perda
     ρ(v) = v * perda
 
-    # https://www.desmos.com/calculator/qj06kcul6d?lang=pt-BR
-    # plot(ϕ, xlim = (0,100), ylim = (0,1))
 
     # Parâmetros da energia
     energias = fill(v0, n)
     dados = zeros(iteracoes, n)
 
+    # Testes
+    uniformes = []
     vs::Vector{Vector{Float64}} = []
 
 
@@ -49,6 +69,7 @@ function simulaNeuronios(ϕ)
         # Ativa os neurônios com a regra probabilística
         probs = ϕ.(energias)
         rands = rand(n)
+        append!(uniformes, rands)
 
         # Detecta os que foram ativadas e registra na matriz
         ativaram = findall(probs .> rands)
@@ -64,52 +85,26 @@ function simulaNeuronios(ϕ)
             energias += W[i, :]
         end
 
+
         # Zera a energia do que ativou
         energias[ativaram] .= 0
         append!(vs, [energias])
 
     end
 
-    return reduce(hcat, vs)
+    matriz = permutedims(dados)
+
+    # Plota as ativações dos neurônios
+    return heatmap(
+            matriz;
+            yflip = true,
+            color = :binary,
+            xlabel = "Instante",
+            ylabel = "Neurônio",
+            title = "Instantes de ativações dos neurônios",
+            legend = false
+        ), matriz, uniformes, reduce(hcat, vs)
 end
 
-function mediaEnergia(v)
-    return 1 / (n * iteracoes) * sum(v)
-end
-
-function analisaPhi()
-    """
-    Analisa diferentes funções ϕ para a ativação dos neurônios.
-    """
-
-    maps = []
-    for c in 0:10
-        println(c)
-        energias = zeros(100, 100) * NaN
-        Threads.@threads for a in 0.01:0.01:1
-            for b in 0.01:0.01:1
-                ϕ(v) = a ./ (1 .+ exp.(-b * v .+ c))
-                me = zeros(M)
-                for i in 1:M
-                    vs = simulaNeuronios(ϕ)
-                    me[i] = mediaEnergia(vs)
-                end
-                energias[Int(round(a * 100)), Int(round(b * 100))] = ϕ(mean(me))
-            end
-        end
-        push!(
-            maps, heatmap(
-                energias;
-                color = :viridis,
-                xlabel = "b",
-                ylabel = "a",
-                title = "Phi da média da energia dos neurônios para c = $c",
-                legend = :right,
-                clims = (0, 1)
-            )
-        )
-    end
-    return maps
-end
-
-plts = analisaPhi()
+p1, m1, u1, v1 = simulaNeuroniosDiagnostico()
+display(p1)

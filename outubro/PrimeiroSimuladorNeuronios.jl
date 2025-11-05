@@ -1,8 +1,10 @@
+# Neste arquivo, criamos um primeiro simulador simples de neurônios
+# estocásticos.
 using Plots, Random, StatsBase
 Random.seed!(69)
 
-const a = 1
-const b = 1
+const a = 0.95
+const b = 0.5
 const c = 0
 const n = 10
 const ganho = 1
@@ -154,4 +156,5 @@ function simulaNeuroniosDiagnostico()
         ), matriz, uniformes, reduce(hcat, vs)
 end
 
-# p1, m1, u1, v1 = simulaNeuroniosDiagnostico()
+p1, m1, u1, v1 = simulaNeuroniosDiagnostico()
+display(p1)
