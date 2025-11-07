@@ -53,4 +53,14 @@ u = \frac{1}{n(n-1)} \sum_{j=1}^{n} \sum_{i}^{n}
 $$
 
 Foi pensado também em encontrar um valor no intervalo $(n, n(n-1)$, ou utilizar
-a forma anterior e escrever $b$ diretamente com ajuste nesse intervalo
+a forma anterior e escrever $b$ diretamente com ajuste nesse intervalo.
+
+## Valor de disparo mínimo $\alpha$
+
+Podemos também introduzir um valor de disparo mínimo $\alpha$, tal que
+$$
+\varphi(v) \geq \alpha, \ \forall v \in \mathbb{R}.
+$$
+
+Isso garante que um neurônio nunca ficará sem atividade com configurações
+infortunas de $W$.
