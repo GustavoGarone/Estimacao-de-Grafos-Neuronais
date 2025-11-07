@@ -2,22 +2,57 @@
 # interessante. Definimos como linear, e buscamos padrões entre a relação do
 # coeficiente angular e
 using Plots, Random, StatsBase, LinearAlgebra
-Random.seed!(69)
-
-const a = 0.8
-const c = 2
+const a = 1
+const ϵ = 0.05
+const β = 0.7
+const c = log(a / ϵ - 1)
 const n = 10
-const ganho = 0.5
+const exc = 1
+const pexc = 0.2 # Valores exemplo do diogo
+const inib = -1
+const pinib = 0.05
 const v0 = 1
-const iteracoes = 100
+const iteracoes = 1000
 const M = 10
 const perda = 1
-const inflexao = 0.7
 
 # https://www.desmos.com/calculator/qj06kcul6d?lang=pt-BR
 # plot(ϕ, xlim = (0,100), ylim = (0,1))
 
-function simulaNeuroniosDiagnostico()
+function criaGrafo()
+    W::Matrix{Float32} = fill(Float32(0), n, n)
+    for i in 1:n
+        for j in 1:n
+            if i != j
+                r = rand()
+                if r < pexc
+                    W[i, j] = exc
+                elseif r < pexc + pinib
+                    W[i, j] = inib
+                end
+            end
+        end
+    end
+    return W
+end
+
+function calculaM(W)
+    # return sum(W) / (n * (n - 1))
+    # Versão Diogo
+    return max(1, sum(abs.(W)) / n)
+end
+
+W = criaGrafo()
+m = calculaM(W)
+b = (c - log(a / β - 1)) / m
+
+#https://www.desmos.com/calculator/v2ebrbvwg8
+
+function ϕ(v)
+    return a / (1 + exp(-b * v + c))
+end
+
+function simulaNeuroniosDiagnostico(seed)
     """
     Nesse modelo, os neurônios, quando ativam, enviam cargas para os neurônios
     conectoados a ele no grafo e, ao final da iteraão, todos que foram ativados são
@@ -29,20 +64,10 @@ function simulaNeuroniosDiagnostico()
     modelo, a cada interação, um neurônio que se ativou pode finalizar a interação
     com energia maior do que 0.
     """
+    Random.seed!(seed)
 
     # Seja W a matriz que representa o grafo ponderado orientado das interações
     # Usamos um grafo completo
-    W::Matrix{Float32} = fill(Float32(ganho), n, n)
-    W[diagind(W)] .= 0.0
-    W̄ = mean(W)
-
-
-    #https://www.desmos.com/calculator/v2ebrbvwg8
-
-    function ϕ(v)
-        b = (c - log((a - inflexao) / inflexao)) / W̄
-        return a / (1 + exp(-b * v .+ c))
-    end
 
     # plotphi = plot(
     #     ϕ, xlims = (-2, 12), ylims = (-0.1, 1.1),
@@ -93,18 +118,47 @@ function simulaNeuroniosDiagnostico()
     end
 
     matriz = permutedims(dados)
+    # Columnwise mean of vs
+    # mean_v = mean(reduce(hcat, vs), dims = 2)
 
+    vvs = reduce(hcat, vs)
+    mapa = heatmap(
+        matriz;
+        yflip = true,
+        color = :binary,
+        xlabel = "Instante",
+        ylabel = "Neurônio",
+        title = "Instantes de ativações dos neurônios",
+        legend = false
+    )
+    enerplot = plot(
+        vec(mean(vvs, dims = 1));
+        label = "Média",
+        xlabel = "Instante",
+        ylabel = "Energia",
+
+    )
+    plot!(
+        enerplot,
+        vec(maximum(vvs, dims = 1));
+        label = "Máxima",
+    )
+    plot!(
+        enerplot,
+        vec(minimum(vvs, dims = 1));
+        label = "Mínima",
+    )
     # Plota as ativações dos neurônios
-    return heatmap(
-            matriz;
-            yflip = true,
-            color = :binary,
-            xlabel = "Instante",
-            ylabel = "Neurônio",
-            title = "Instantes de ativações dos neurônios",
-            legend = false
-        ), matriz, uniformes, reduce(hcat, vs)
+    return mapa, matriz, uniformes, vvs, m, W, enerplot
 end
 
-p1, m1, u1, v1 = simulaNeuroniosDiagnostico()
-display(p1)
+p1, m1, unif, v1, m, w, p2 = simulaNeuroniosDiagnostico(42)
+pphi = plot(
+    ϕ, xlims = (-2, 12), ylims = (-0.1, 1.1),
+    title = "Função de ativação ϕ", xlabel = "Energia v",
+    ylabel = "Probabilidade de ativação ϕ(v)",
+    label = "",
+    framestyle = :zerolines,
+)
+hline!([β], label = "β = $β", linestyle = :dash)
+vline!([m], label = "m = $m", linestyle = :dash)
