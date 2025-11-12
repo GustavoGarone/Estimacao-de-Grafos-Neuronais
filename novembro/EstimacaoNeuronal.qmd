@@ -42,7 +42,7 @@ $$
 
 Relembrando a versão do Diogo:
 $$
-u = \max{1, \frac{1}{n} \sum_{j=1}^{n} \sum_{i=1}^{n} \lvert w_{i \rightarrow j}|},
+u = \max\left(1, \frac{1}{n} \sum_{j=1}^{n} \sum_{i=1}^{n} \lvert w_{i \rightarrow j}|}\right),
 $$
 ou seja, a soma dos valores absolutos da matriz $W$ que descreve o grafo.
 
