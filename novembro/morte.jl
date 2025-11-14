@@ -1,0 +1,246 @@
+using Plots, Random, StatsBase, LinearAlgebra, LaTeXStrings, HypothesisTests, Distributions
+
+function analisaPhiMorte(semente::Int, n::Int, τ, MC::Int)
+    Random.seed!(semente)
+    # Parâmetros
+    a = 1.0 # Probabilidade máxima de disparo
+    ϵ = 0.0 # Probbabilidade de disparo espontâneo
+    α = 0.0 # Probabilidade mínima de disparo
+    β = 0.7 # Probabilidade de disparo média desejada
+    c = log(a / ϵ - 1)
+    exc = 1
+    pexc = 1
+    inib = -1
+    pinib = 0
+    v0 = 5
+    retencao = 0.925
+
+    function criaGrafo()
+        W = fill(Float32(0), n, n)
+        for i in 1:n
+            for j in 1:n
+                if i != j
+                    r = rand()
+                    if r < pexc
+                        W[i, j] = exc
+                    elseif r < pexc + pinib
+                        W[i, j] = inib
+                    end
+                end
+            end
+        end
+        return W
+    end
+
+    function calculaM(W)
+        # return sum(W) / (n * (n - 1))
+        # Versão Diogo
+        return max(1, sum(abs.(W)) / n)
+    end
+
+    W::Matrix{Float32} = criaGrafo()
+    m = calculaM(W)
+    b = (c - log(a / β - 1)) / m
+
+    if ϵ < α
+        error("Erro: ϵ deve ser maior ou igual a α")
+    end
+    ϕ = nothing
+
+    k = 0.01
+    if ϵ <= 0
+        c = log(a / k - 1)
+        b = (c - log(a / β - 1)) / m
+        ϕ = function (v)
+            return max((a + k) * 1 / (1 + exp(-b * v + c)) - k * (1 + k), 0)
+        end
+    else
+        ϕ = function (v)
+            return max(a / (1 + exp(-b * v + c)), α)
+        end
+    end
+
+    function simulaNeuronios(max_it::Int = 1_000_000)
+        # Função de perda
+        ρ(v) = v * retencao
+
+        # Parâmetros da energia
+        energias = fill(v0, n)
+        dados = zeros(max_it, n)
+
+        i = 0
+        while i < max_it
+            i += 1
+            # Ativa os neurônios com a regra probabilística
+            probs = ϕ.(energias)
+            rands = rand(n)
+
+            # Detecta os que foram ativadas e registra na matriz
+            ativaram = findall(probs .> rands)
+            pulsos = zeros(n)
+            pulsos[ativaram] .= 1
+            dados[i, :] = pulsos
+
+            # Ocasiona perda
+            energias = ρ(energias)
+
+            # Transfere energia para os adjacentes (segundo a matriz W)
+            for i in ativaram
+                energias += W[i, :]
+            end
+
+
+            # Zera a energia do que ativou
+            energias[ativaram] .= 0
+            if isapprox(sum(energias), 0, atol = τ * n)
+                return i
+            end
+        end
+        return max_it
+    end
+
+    function simulaNeuroniosDiagnostico(max_it::Int = 1000)
+        """
+        Nesse modelo, os neurônios, quando ativam, enviam cargas para os neurônios
+        conectados a ele no grafo e, ao final da iteraão, todos que foram ativados são
+        zerados.
+        Alternativa, pode-se modelar um sistema em que a matriz W tem diagonal nula e,
+        quando um neurônio se ativa, na iteração de disperção das energias,
+        não ganha energia. Todavia, zeramos todos os neurônios assim que
+        são ativados e só em seguida dispersamos a energia para os demais. Nesse novo
+        modelo, a cada interação, um neurônio que se ativou pode finalizar a interação
+        com energia maior do que 0.
+        """
+        # Função de perda
+        ρ(v) = v * retencao
+
+
+        # Parâmetros da energia
+        energias = fill(v0, n)
+        dados = zeros(max_it, n)
+
+        # Testes
+        uniformes = []
+        vs::Vector{Vector{Float64}} = []
+
+
+        for i in 1:max_it
+            # Ativa os neurônios com a regra probabilística
+            probs = ϕ.(energias)
+            rands = rand(n)
+            append!(uniformes, rands)
+
+            # Detecta os que foram ativadas e registra na matriz
+            ativaram = findall(probs .> rands)
+            pulsos = zeros(n)
+            pulsos[ativaram] .= 1
+            dados[i, :] = pulsos
+
+            # Ocasiona perda
+            energias = ρ(energias)
+
+            # Transfere energia para os adjacentes (segundo a matriz W)
+            for i in ativaram
+                energias += W[i, :]
+            end
+
+
+            # Zera a energia do que ativou
+            energias[ativaram] .= 0
+            append!(vs, [energias])
+
+        end
+
+        matriz = permutedims(dados)
+
+        vvs = reduce(hcat, vs)
+        meds = vec(mean(vvs, dims = 1)); mmeds = mean(meds)
+        maxs = vec(maximum(vvs, dims = 1)); mmaxs = mean(maxs)
+        mins = vec(minimum(vvs, dims = 1)); mmins = mean(mins)
+
+        mapa = heatmap(
+            matriz;
+            yflip = true,
+            color = :binary,
+            xlabel = "Instante",
+            ylabel = "Neurônio",
+            title = "Instantes de ativações dos neurônios",
+            legend = false
+        )
+        enerplot = plot(
+            meds,
+            label = "Média",
+            xlabel = "Instante",
+            ylabel = "Energia",
+            legend = :outerbottom,
+        )
+        plot!(
+            enerplot,
+            maxs,
+            label = "Máximo",
+        )
+        plot!(
+            enerplot,
+            mins,
+            label = "Mínimo",
+        )
+        hline!(
+            [mmeds],
+            label = "Média Geral = $(round(mmeds, digits = 4))",
+            linestyle = :dash
+        )
+        hline!(
+            [mmaxs],
+            label = "Média Máximos = $(round(mmaxs, digits = 4))",
+            linestyle = :dash
+        )
+        hline!(
+            [mmins],
+            label = "Média Mínimos = $(round(mmins, digits = 4))",
+            linestyle = :dash
+        )
+
+        pphi = plot(
+            ϕ, xlims = (-10, 100), ylims = (-0.1, 1.1),
+            title = "Função de ativação " * L"\varphi", xlabel = "Energia v",
+            ylabel = "Probabilidade de ativação " * L"\varphi(v)",
+            label = "",
+            framestyle = :zerolines,
+            legend = :bottomright
+        )
+        hline!([β], label = L"β = %$β", linestyle = :dash)
+        vline!([m], label = L"m = %$m", linestyle = :dash)
+        scatter!(
+            [mmeds], [ϕ(mmeds)],
+            label = L"\varphi(\bar{v}) = %$(round(ϕ(mmeds), digits=4))", color = :red
+        )
+        scatter!(
+            [mmaxs], [ϕ(mmaxs)],
+            label = L"\varphi(v_{max}) = %$(round(ϕ(mmaxs), digits=4))", color = :green
+        )
+        scatter!(
+            [mmins], [ϕ(mmins)],
+            label = L"\varphi(v_{min}) = %$(round(ϕ(mmins), digits=4))", color = :blue
+        )
+
+        # Plota as ativações dos neurônios
+        return mapa, enerplot, pphi, matriz, uniformes, vvs, m, W
+    end
+
+    diags = simulaNeuroniosDiagnostico()
+
+    resultados = zeros(MC)
+    Threads.@threads for i in 1:MC
+        resultados[i] = simulaNeuronios()
+    end
+    return resultados, diags
+end
+
+MC = 1000
+analiseMorte, diags = analisaPhiMorte(11, 20, 1.0e-4, MC)
+analiseMorteAdj = analiseMorte ./ mean(analiseMorte)
+kst = ExactOneSampleKSTest(analiseMorteAdj, Exponential(1))
+histogram(
+    analiseMorteAdj,
+    title = "Tempos de morte normalizados MC = $MC", ylabel = "Tempo de morte normalizado", normalize = :pdf, label = ""
+)
