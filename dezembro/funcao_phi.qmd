@@ -1,0 +1,66 @@
+---
+format: html
+---
+# $\varphi$ de disparo para simulação neuronal
+
+## Definindo $a$, $b$ em função de $\epsilon$ e $\beta$
+
+Estamos usando a função de ativação $\varphi(\cdot)$, perda $g$ (um fator
+multiplicativo) a cada instante, um grafo completo ponderado e orientado $w$ com
+$n$ vértices, sendo $w_{i \rightarrow j}=1, \ \ i,j = 1,2,\cdots,n$.
+
+Usamos um grafo completo unitário para podermos ter resultados comparáveis com
+os encontrados por Diogo, que também definiu $g=0.8$.
+$$ 
+\varphi(v) = \frac{a}{1+ \exp(-bv+c)}.
+$$
+Isso, é, uma sigmoide genérica. 
+
+Para uma probabilidade de disparo máxima $a$ e queremos que essa
+$\varphi$ satisfaça $\varphi(0) = \epsilon$, em que $\epsilon$ é a
+probabilidade de disparo espontâneo.
+$$
+\begin{aligned}
+\varphi(0) = \epsilon \iff& \frac{a}{1+ \exp(+c)} = \epsilon \\
+\Rightarrow&\ c = \ln\left(\frac{a}{\epsilon} - 1\right).
+\end{aligned} 
+$$
+
+Queremos também, a partir de uma "energia média" $u$ definida a partir da matriz
+$W$, definir $\varphi(u) = \beta$, em que $\beta$ é a probabilidade de disparo
+média alvo.
+
+$$
+\begin{aligned}
+\varphi(u) = \beta \iff& \frac{a}{1+ \exp(-bu+c)} = \beta \\
+\Rightarrow&\ -bu + c = \ln\left(\frac{\epsilon}{\beta} - 1\right) \\
+\Rightarrow&\ b = \frac{c - \ln\left(\frac{\epsilon}{\beta} - 1\right)}{u}.
+\end{aligned}
+$$
+
+## Definindo $u$.
+
+Relembrando a versão do Diogo:
+$$
+u = \max\left(1, \frac{1}{n} \sum_{j=1}^{n} \sum_{i=1}^{n}\lvert w_{i \rightarrow j}\rvert \right),
+$$
+ou seja, a soma dos valores absolutos da matriz $W$ que descreve o grafo.
+
+Pensamos em utilizar
+$$
+u = \frac{1}{n(n-1)} \sum_{j=1}^{n} \sum_{i}^{n}
+\lvert w_{i\rightarrow j}\rvert.
+$$
+
+Foi pensado também em encontrar um valor no intervalo $(n, n(n-1)$, ou utilizar
+a forma anterior e escrever $b$ diretamente com ajuste nesse intervalo.
+
+## Valor de disparo mínimo $\alpha$
+
+Podemos também introduzir um valor de disparo mínimo $\alpha$, tal que
+$$
+\varphi(v) \geq \alpha, \ \forall v \in \mathbb{R}.
+$$
+
+Isso garante que um neurônio nunca ficará sem atividade com configurações
+infortunas de $W$.
